@@ -1,6 +1,9 @@
 # Ethical-Hacking-Commands-Generator
 A static, single-page web utility for generating complex command-line syntax for ethical hacking and security auditing tools.
 
+Commands Generator Online ⬇️⬇️⬇️
+# https://yottajunaid.github.io/Ethical-Hacking-Commands-Generator/
+
 ## 📋 Overview
 
 **CmdGen** is a lightweight, responsive web application designed to help penetration testers, CTF players, and security researchers quickly construct accurate commands for popular security tools. Instead of memorizing obscure flags or constantly checking man pages, users can select a tool, configure parameters via a GUI, and instantly get the production-ready command.
