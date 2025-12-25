@@ -49,18 +49,18 @@ Since this is a static website, "installation" is as simple as opening a file.
 1.  **Clone the repository:**
     
     ```
-    git clone [https://github.com/yourusername/red-team-cmdgen.git](https://github.com/yourusername/red-team-cmdgen.git)
+    git clone https://github.com/yottajunaid/Ethical-Hacking-Commands-Generator.git
     ```
     
 2.  **Navigate to the directory:**
     
     ```
-    cd red-team-cmdgen
+    cd Ethical-Hacking-Commands-Generator
     ```
     
 3.  **Run:**
     
-    - Simply double-click `tool_generator.html` to open it in your browser.
+    - Simply double-click `index.html` to open it in your browser.
         
     - **OR** serve it locally with python:
         
