@@ -45,6 +45,10 @@ It runs entirely in the browser using vanilla JavaScript and Tailwind CSS. No ba
 
 | Discovery | Amass, Enum4linux, Maltego, OpenVAS |
 
+## Screenshot
+<img width="1918" height="872" alt="image" src="https://github.com/user-attachments/assets/aad5d639-95b4-417d-bdff-adc077f5fab9" />
+
+
 ## 🚀 Installation & Usage
 
 Since this is a static website, "installation" is as simple as opening a file.
